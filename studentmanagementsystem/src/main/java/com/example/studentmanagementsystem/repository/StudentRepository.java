@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 @Repository
 public class StudentRepository {
@@ -18,49 +19,42 @@ public class StudentRepository {
         this.firestore = firestore;
     }
 
-    public String saveStudent(Student student) throws ExecutionException, InterruptedException{
-        if(student.getStudentId() == null){
-            student.setStudentId(firestore.collection(collection).document().getId());
-        }
-        ApiFuture<WriteResult> future = firestore.collection(collection).document(student.getStudentId()).set(student);
-        return future.get().getUpdateTime().toString();
+    public Student save(Student student) throws ExecutionException, InterruptedException{
+        DocumentReference docRef = firestore.collection(collection)
+                .document(student.getStudentId() == null ? firestore.collection(collection).document().getId() : student.getStudentId());
+                student.setStudentId(docRef.getId());
+                docRef.set(student).get();
+                 return student;
+
     }
 
-    public Student getStudentById(String studentId) throws ExecutionException, InterruptedException{
-        DocumentReference docRef = firestore.collection(collection).document(studentId);
-        ApiFuture<DocumentSnapshot> future = docRef.get();
-
-        DocumentSnapshot document = future.get();
-
+    public Student findById(String studentId) throws ExecutionException, InterruptedException{
+        DocumentSnapshot document = firestore.collection(collection)
+                .document(studentId).get().get();
         if(document.exists()){
             return document.toObject(Student.class);
         }
         return null;
     }
 
-    public List<Student> getAllStudents() throws ExecutionException, InterruptedException{
-        List<Student> students = new ArrayList<>();
-        ApiFuture<QuerySnapshot> future = firestore.collection(collection).get();
-        List<QueryDocumentSnapshot> documents = future.get().getDocuments();
-        for(QueryDocumentSnapshot document:documents){
-            students.add(document.toObject(Student.class));
-        }
-        return students;
+    public List<Student> findAll() throws ExecutionException, InterruptedException{
+        QuerySnapshot querySnapshot = firestore.collection(collection).get().get();
+       return querySnapshot.getDocuments().stream()
+               .map(document -> document.toObject(Student.class))
+               .collect(Collectors.toList());
     }
 
-    public String updateStudent(Student student) throws ExecutionException,InterruptedException{
-        if(student.getStudentId() == null){
-            throw new IllegalArgumentException("Student ID cannot be null for update");
+    public Student update(Student student) throws ExecutionException, InterruptedException {
+        DocumentReference docRef = firestore.collection(collection).document(student.getStudentId());
+        DocumentSnapshot document = docRef.get().get();
+        if (!document.exists()) {
+            return null;
         }
-        ApiFuture<WriteResult> future = firestore.collection(collection)
-                .document(student.getStudentId())
-                .set(student, SetOptions.merge());
-        return future.get().getUpdateTime().toString();
+        return document.toObject(Student.class);
     }
 
-    public String deleteStudentById(String studentId) throws ExecutionException,InterruptedException{
-        ApiFuture<WriteResult> future = firestore.collection(collection).document(studentId).delete();
-        return future.get().getUpdateTime().toString();
+    public void deleteById(String studentId) throws ExecutionException,InterruptedException {
+        firestore.collection(collection).document(studentId).delete();
     }
 
 }

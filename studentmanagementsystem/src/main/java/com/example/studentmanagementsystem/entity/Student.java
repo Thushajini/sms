@@ -14,7 +14,7 @@ public class Student {
     private String name;
     private String address;
     private String city;
-    private List<String> courseIds;
+    private List<String> courseId;
 
 
 }
